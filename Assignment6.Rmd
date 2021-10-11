@@ -1,0 +1,136 @@
+---
+title: "Assignment6"
+author: "Yoji"
+date: "10/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(leaflet)
+library(sf)
+library(tidyverse)
+library(tidycensus)
+library(ggthemes)
+library(ggspatial)
+library(htmlwidgets)
+library(tidytransit)
+
+```
+
+## 
+
+
+```{r cars}
+# set up for asian information in Orange county in Florida
+vars2010 <- load_variables(2010, "sf1")
+acsvars <- load_variables(2017, "acs5")
+vars2010_japan <- vars2010[grep("Japanese", vars2010$label), ] 
+vars2010_asian <- vars2010[grep("Asian", vars2010$label), ] 
+acsvars_income <- acsvars[grep("Income", acsvars$label), ]
+acsvars_income2 <- acsvars[grep("INCOME", acsvars$concept), ]
+
+Orange_Asian <- get_decennial(geography = "block",
+                          state = "FL", county = "Orange",
+                          year = 2010,
+                          output = "wide",
+                          variables = c(tot_pop = 'P008001',
+                                        asian_pop = 'P008006'),
+                          geometry = TRUE)
+
+Orange_Asian <- Orange_Asian %>% 
+  mutate(pct_asian = asian_pop / tot_pop * 100) %>% 
+  filter(tot_pop > 0)
+
+Orange_Asian$pct_asian[which(Orange_Asian$pct_asian > 25)] <- 25
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+FL_state_plane <- "+proj=aea +lat_1=24 +lat_2=31.5 +lat_0=24 +lon_0=-84 +x_0=400000 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
+
+ggplot(Orange_Asian) +
+  annotation_map_tile(zoomin = 0, progress = "none", type = "stamenbw") +
+  geom_sf(color = NA, aes(fill = pct_asian), alpha = 0.7) +
+  coord_sf(crs = FL_state_plane) +
+  scale_fill_continuous(type = "viridis", 
+                       na.value=NA,
+                       name = "Percent of population\nidentifying as Asian alone",
+                       breaks = c(0, 1, 5, 10, 15, 20),
+                    labels = c("0", "1%", "5%", "10%", "15%", "20% ~")) +
+  theme_void() 
+```
+
+
+```{r}
+FL_Asian_palette <- colorNumeric(c("#faff7f", "#00d600"), Orange_Asian$pct_asian)
+
+Asian_map1 <- leaflet(Orange_Asian) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(stroke = FALSE, fillOpacity = 0.7,
+    color = ~FL_Asian_palette(pct_asian)) %>%
+  addLegend("bottomright", pal = FL_Asian_palette, values = ~pct_asian,
+    title = "Percent of population<br/>identifying as Asian alone",
+    labFormat = labelFormat(suffix = "%"),
+    opacity = 1)
+
+Asian_map1 
+```
+
+```{r}
+Asian_map2 <- leaflet(Orange_Asian) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(color = ~FL_Asian_palette(pct_asian), stroke = FALSE, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "#007f00", fillOpacity = 0.9),
+              label = "This is a label",
+              popup = "This is a popup") %>%
+    addLegend("bottomright", pal = FL_Asian_palette, values = ~pct_asian,
+    title = "Percent of population<br/>identifying as Asian alone",
+    labFormat = labelFormat(suffix = "%"),
+    opacity = 1)
+
+Asian_map2
+```
+
+
+```{r}
+Asian_map3 <- leaflet(Orange_Asian) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(color = ~FL_Asian_palette(pct_asian), stroke = FALSE, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "#007f00", fillOpacity = 0.9),
+              label = paste("Total Population: ", Orange_Asian$tot_pop, ", ",
+                            "Asian Population: ", Orange_Asian$asian_pop, "(",
+                            round(Orange_Asian$pct_asian, 1), "%)", sep = "")) %>%
+    addLegend("bottomright", pal = FL_Asian_palette, values = ~pct_asian,
+    title = "Percent of population<br/>identifying as Asian alone",
+    labFormat = labelFormat(suffix = "%"),
+    opacity = 1)
+
+Asian_map3
+```
+
+
+```{r}
+saveWidget(Asian_map3, file="inter_asian.html")
+```
+
+
+```{r}
+income_Orange <- get_acs(geography = "tract", county = "Orange", state = "FL", 
+                           year = 2019, survey = "acs5",
+                           variables = c(median = "B19001_001", "5000" = "B19001_002", "12500" = "B19001_003", "17500" = "B19001_004",
+                                         "22500" = "B19001_005", "27500" = "B19001_006", "32500" = "B19001_007", "37500" = "B19001_008",
+                                         "42500" = "B19001_009", "47500" = "B19001_010", "55000" = "B19001_011", "67500" = "B19001_012",
+                                         "87500" = "B19001_013", "11250" = "B19001_014", "137500" = "B19001_015", "175000" = "B19001_016",
+                                         "300000" = "B19001_017"),
+                           output = "wide", geometry = TRUE) 
+
+income_Orange <- transit_Suffolk %>%
+  select(-tot_wrkrsM, -pt_wrkrsM) %>%
+  filter(tot_wrkrsE > 0) %>%
+  mutate(pct_transit = round(100 * pt_wrkrsE / tot_wrkrsE, 1))
+
+```
+
