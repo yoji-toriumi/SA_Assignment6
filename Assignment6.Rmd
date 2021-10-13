@@ -14,7 +14,7 @@ library(ggthemes)
 library(ggspatial)
 library(htmlwidgets)
 library(tidytransit)
-
+census_api_key("6e61d8662d21a3e70a7325a165b1742091cbfea6")
 ```
 
 ## 
@@ -120,17 +120,111 @@ saveWidget(Asian_map3, file="inter_asian.html")
 ```{r}
 income_Orange <- get_acs(geography = "tract", county = "Orange", state = "FL", 
                            year = 2019, survey = "acs5",
-                           variables = c(median = "B19001_001", "5000" = "B19001_002", "12500" = "B19001_003", "17500" = "B19001_004",
-                                         "22500" = "B19001_005", "27500" = "B19001_006", "32500" = "B19001_007", "37500" = "B19001_008",
-                                         "42500" = "B19001_009", "47500" = "B19001_010", "55000" = "B19001_011", "67500" = "B19001_012",
-                                         "87500" = "B19001_013", "11250" = "B19001_014", "137500" = "B19001_015", "175000" = "B19001_016",
-                                         "300000" = "B19001_017"),
+                           variables = c(median = "B19001_001", e5000 = "B19001_002", e12500 = "B19001_003", e17500 = "B19001_004",
+                                         e22500 = "B19001_005", e27500 = "B19001_006", e32500 = "B19001_007", e37500 = "B19001_008",
+                                         e42500 = "B19001_009", e47500 = "B19001_010", e55000 = "B19001_011", e67500 = "B19001_012",
+                                         e87500 = "B19001_013", e112500 = "B19001_014", e137500 = "B19001_015", e175000 = "B19001_016",
+                                         e300000 = "B19001_017"),
                            output = "wide", geometry = TRUE) 
 
-income_Orange <- transit_Suffolk %>%
-  select(-tot_wrkrsM, -pt_wrkrsM) %>%
-  filter(tot_wrkrsE > 0) %>%
-  mutate(pct_transit = round(100 * pt_wrkrsE / tot_wrkrsE, 1))
+income_Orange <- income_Orange %>%
+  select(-e5000M, -e12500M, -e17500M, -e22500M, -e27500M, -e32500M, -e37500M, -e42500M, -e47500M, -e55000M, -e67500M, -e87500M, -e112500M, -e137500M, -e175000M, -e300000M)
 
+
+income_Orange <- income_Orange %>% 
+  mutate(meanE = (e5000E*5000 + e12500E*12500 +e17500E*17500 +e22500E*22500 +e27500E*27500 +e32500E*32500 +e37500E*37500 +e42500E*42500 +e47500E*47500 +e55000E*55000 +e67500E*67500 + e87500E*87500 +e87500E*87500 +e112500E*112500 +e137500E*137500 +e175000E*175000 +e300000E*300000)/ medianE)
+```
+
+```{r}
+income_palette <- colorNumeric(c("#faff7f", "#00d600"),
+                                income_Orange$meanE)
+
+income_map <- leaflet(income_Orange) %>%
+  addProviderTiles("Esri.NatGeoWorldMap") %>%
+  addPolygons(fillColor = ~income_palette(meanE), weight = 1, color = "gray", fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "yellow", fillOpacity = 0.9),
+              label = paste("Mean Income: ",  round(income_Orange$meanE, 1))) %>%
+    addLegend("bottomright", pal = income_palette, values = ~meanE,
+    title = "Mean Income",
+    labFormat = labelFormat(suffix = "USD"),
+    opacity = 1)
+
+
+income_map
+```
+
+```{r}
+orlando_landmark <- read_sf("https://opendata.arcgis.com/datasets/a24493a82e094ed7aa7b21ef9a924a34_0.geojson")
+
+orlando_landmark <- orlando_landmark%>% 
+  st_as_sf(coords = c("land_lon", "land_lat"), 
+                          crs = "WGS84")
+orlando_landmark2 <- orlando_landmark %>% extract("geometry", c('land_lon', 'land_lat'), '\\((.*), (.*)\\)', convert = TRUE)  
+
+st_write(orlando_landmark2, "orlando_landmark2.csv", layer_options = "GEOMETRY=AS_XY", append = FALSE)
+
+orlando_landmark3 <- read_csv("orlando_landmark2.csv")
+
+orlando_landmark4 <- income_map %>% 
+  addMarkers(lng = orlando_landmark3$land_lon,
+             lat = orlando_landmark3$land_lat,
+             popup = orlando_landmark3$Historic_Name)
+
+orlando_landmark4
+```
+
+```{r}
+orange_park <- read_sf("Parks_Countywide.geojson")
+
+orange_park <- orange_park%>% 
+  st_as_sf(coords = c("land_lon", "land_lat"), 
+                          crs = "WGS84")
+orange_park <- orange_park %>% extract("geometry", c('land_lon', 'land_lat'), '\\((.*), (.*)\\)', convert = TRUE)  
+
+st_write(orange_park, "orange_park.csv", layer_options = "GEOMETRY=AS_XY", append = FALSE)
+
+orange_park <- read_csv("orange_park.csv")
+
+orange_park1 <- income_map %>% 
+  addMarkers(lng = orange_park$land_lon,
+             lat = orange_park$land_lat,
+             popup = orange_park$PARK_NAME)
+
+orange_park1
+```
+
+```{r}
+limits <- st_bbox(income_Orange)
+
+orange_park2 <- orange_park1 %>%
+   fitBounds( lng1 = as.numeric(limits[1]),
+                lat1 = as.numeric(limits[2]),
+                lng2 = as.numeric(limits[3]),
+                lat2 = as.numeric(limits[4])) %>%
+   setMaxBounds( lng1 = as.numeric(limits[1]),
+                lat1 = as.numeric(limits[2]),
+                lng2 = as.numeric(limits[3]),
+                lat2 = as.numeric(limits[4])) 
+
+orange_park2
+```
+
+```{r}
+orange_park3 <- income_map %>%
+  addCircleMarkers(stroke = FALSE, fill = "cyan1", fillOpacity = 1, radius = 3,
+                   lng = orange_park$land_lon,
+                   lat = orange_park$land_lat,
+                   popup = orange_park$PARK_NAME) %>%
+   fitBounds( lng1 = as.numeric(limits[1]),
+                lat1 = as.numeric(limits[2]),
+                lng2 = as.numeric(limits[3]),
+                lat2 = as.numeric(limits[4])) %>%
+   setMaxBounds( lng1 = as.numeric(limits[1]),
+                lat1 = as.numeric(limits[2]),
+                lng2 = as.numeric(limits[3]),
+                lat2 = as.numeric(limits[4])) 
+
+
+orange_park3
 ```
 
