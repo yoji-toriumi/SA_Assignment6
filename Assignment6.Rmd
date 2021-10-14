@@ -2,9 +2,10 @@
 title: "VIS 2128 | Assignment 6"
 author: "Yoji Toriumi"
 date: "10/14/2021"
-output: html_document
+output: 
+  prettydoc::html_pretty:
+    theme: architect
 ---
-
 ```{r setup, include=FALSE}
 library(leaflet)
 library(sf)
@@ -14,10 +15,11 @@ library(ggthemes)
 library(ggspatial)
 library(htmlwidgets)
 library(tidytransit)
+library(prettydoc)
 census_api_key("6e61d8662d21a3e70a7325a165b1742091cbfea6")
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, results=FALSE, echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE)
 ```
-```{r cars}
+```{r cars, results=FALSE}
 # set up for asian information in Orange county in Florida
 vars2010 <- load_variables(2010, "sf1")
 acsvars <- load_variables(2017, "acs5")
@@ -40,7 +42,7 @@ Orange_Asian <- Orange_Asian %>%
 
 Orange_Asian$pct_asian[which(Orange_Asian$pct_asian > 25)] <- 25
 ```
-```{r pressure, echo=FALSE}
+```{r pressure, echo=FALSE, results=FALSE}
 FL_state_plane <- "+proj=aea +lat_1=24 +lat_2=31.5 +lat_0=24 +lon_0=-84 +x_0=400000 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
 Asian_map0 <- ggplot(Orange_Asian) +
@@ -54,7 +56,7 @@ Asian_map0 <- ggplot(Orange_Asian) +
                     labels = c("0", "1%", "5%", "10%", "15%", "20% ~")) +
   theme_void() 
 ```
-```{r}
+```{r, results=FALSE}
 FL_Asian_palette <- colorNumeric(c("#faff7f", "#00d600"), Orange_Asian$pct_asian)
 
 Asian_map1 <- leaflet(Orange_Asian) %>%
@@ -65,11 +67,8 @@ Asian_map1 <- leaflet(Orange_Asian) %>%
     title = "Percent of population<br/>identifying as Asian alone",
     labFormat = labelFormat(suffix = "%"),
     opacity = 1)
-
-Asian_map1 
 ```
-
-```{r}
+```{r, results=FALSE}
 Asian_map2 <- leaflet(Orange_Asian) %>%
   addProviderTiles("Stamen.TonerLite") %>%
   addPolygons(color = ~FL_Asian_palette(pct_asian), stroke = FALSE, fillOpacity = 0.7,
@@ -80,10 +79,9 @@ Asian_map2 <- leaflet(Orange_Asian) %>%
     title = "Percent of population<br/>identifying as Asian alone",
     labFormat = labelFormat(suffix = "%"),
     opacity = 1)
-
-Asian_map2
 ```
-
+## Block-wise interactive map in Orange County, Florida
+The following map shows block-wise percent of the population identifying as Asian alone in Orange County, Florida. Asian tends to live in the periphery of the county as is evidenced by the small percentage of Asian alone in Orlando. If you hover over the feature, you can get the information of the total population and the percent of Asian alone.
 
 ```{r}
 Asian_map3 <- leaflet(Orange_Asian) %>%
@@ -101,13 +99,7 @@ Asian_map3 <- leaflet(Orange_Asian) %>%
 Asian_map3
 ```
 
-
-```{r}
-saveWidget(Asian_map3, file="inter_asian.html")
-```
-
-
-```{r}
+```{r, results=FALSE}
 income_Orange <- get_acs(geography = "tract", county = "Orange", state = "FL", 
                            year = 2019, survey = "acs5",
                            variables = c(median = "B19001_001", e5000 = "B19001_002", e12500 = "B19001_003", e17500 = "B19001_004",
@@ -125,7 +117,7 @@ income_Orange <- income_Orange %>%
   mutate(meanE = (e5000E*5000 + e12500E*12500 +e17500E*17500 +e22500E*22500 +e27500E*27500 +e32500E*32500 +e37500E*37500 +e42500E*42500 +e47500E*47500 +e55000E*55000 +e67500E*67500 + e87500E*87500 +e87500E*87500 +e112500E*112500 +e137500E*137500 +e175000E*175000 +e300000E*300000)/ medianE)
 ```
 
-```{r}
+```{r, results=FALSE}
 income_palette <- colorNumeric(c("#faff7f", "#00d600"),
                                 income_Orange$meanE)
 
@@ -138,32 +130,8 @@ income_map <- leaflet(income_Orange) %>%
     title = "Mean Income",
     labFormat = labelFormat(suffix = "USD"),
     opacity = 1)
-
-
-income_map
 ```
-
-```{r}
-orlando_landmark <- read_sf("https://opendata.arcgis.com/datasets/a24493a82e094ed7aa7b21ef9a924a34_0.geojson")
-
-orlando_landmark <- orlando_landmark%>% 
-  st_as_sf(coords = c("land_lon", "land_lat"), 
-                          crs = "WGS84")
-orlando_landmark2 <- orlando_landmark %>% extract("geometry", c('land_lon', 'land_lat'), '\\((.*), (.*)\\)', convert = TRUE)  
-
-st_write(orlando_landmark2, "orlando_landmark2.csv", layer_options = "GEOMETRY=AS_XY", append = FALSE)
-
-orlando_landmark3 <- read_csv("orlando_landmark2.csv")
-
-orlando_landmark4 <- income_map %>% 
-  addMarkers(lng = orlando_landmark3$land_lon,
-             lat = orlando_landmark3$land_lat,
-             popup = orlando_landmark3$Historic_Name)
-
-orlando_landmark4
-```
-
-```{r}
+```{r, results=FALSE}
 orange_park <- read_sf("Parks_Countywide.geojson")
 
 orange_park <- orange_park%>% 
@@ -179,11 +147,8 @@ orange_park1 <- income_map %>%
   addMarkers(lng = orange_park$land_lon,
              lat = orange_park$land_lat,
              popup = orange_park$PARK_NAME)
-
-orange_park1
 ```
-
-```{r}
+```{r, results=FALSE}
 limits <- st_bbox(income_Orange)
 
 orange_park2 <- orange_park1 %>%
@@ -195,10 +160,10 @@ orange_park2 <- orange_park1 %>%
                 lat1 = as.numeric(limits[2]),
                 lng2 = as.numeric(limits[3]),
                 lat2 = as.numeric(limits[4])) 
-
-orange_park2
 ```
 
+## Tract-wise interactive map in Orange County, Florida
+The following map shows the tract-wise mean income in Orange County, Florida. The income in Orlando city and south-west area seem higher than the other parts of the county. I also put the location of parks, and we can observe that more parks are located at the center and western part of the county. If you hover over the feature, you can get the information of the income and name of parks.
 ```{r}
 orange_park3 <- income_map %>%
   addCircleMarkers(stroke = FALSE, fill = "cyan1", fillOpacity = 1, radius = 3,
@@ -216,18 +181,4 @@ orange_park3 <- income_map %>%
 
 
 orange_park3
-
-saveWidget(orange_park3, file="orange_park.html")
 ```
-
-```{r}
-Yamanashi_url <- feedlist[feedlist$t == "Yamanashi GTFS",]$url_d
-
-Yamanashi <- read_gtfs(Yamanashi_url)
-
-Yamanashi_stops <- Yamanashi$stops
-
-transit_stations <- transit_stops %>%
-  filter(location_type == 1)
-```
-
