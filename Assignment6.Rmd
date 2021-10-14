@@ -1,7 +1,7 @@
 ---
-title: "Assignment6"
-author: "Yoji"
-date: "10/9/2021"
+title: "VIS 2128 | Assignment 6"
+author: "Yoji Toriumi"
+date: "10/14/2021"
 output: html_document
 ---
 
@@ -15,11 +15,8 @@ library(ggspatial)
 library(htmlwidgets)
 library(tidytransit)
 census_api_key("6e61d8662d21a3e70a7325a165b1742091cbfea6")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, results=FALSE, echo = FALSE)
 ```
-
-## 
-
-
 ```{r cars}
 # set up for asian information in Orange county in Florida
 vars2010 <- load_variables(2010, "sf1")
@@ -43,15 +40,10 @@ Orange_Asian <- Orange_Asian %>%
 
 Orange_Asian$pct_asian[which(Orange_Asian$pct_asian > 25)] <- 25
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
 ```{r pressure, echo=FALSE}
 FL_state_plane <- "+proj=aea +lat_1=24 +lat_2=31.5 +lat_0=24 +lon_0=-84 +x_0=400000 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
-ggplot(Orange_Asian) +
+Asian_map0 <- ggplot(Orange_Asian) +
   annotation_map_tile(zoomin = 0, progress = "none", type = "stamenbw") +
   geom_sf(color = NA, aes(fill = pct_asian), alpha = 0.7) +
   coord_sf(crs = FL_state_plane) +
@@ -62,8 +54,6 @@ ggplot(Orange_Asian) +
                     labels = c("0", "1%", "5%", "10%", "15%", "20% ~")) +
   theme_void() 
 ```
-
-
 ```{r}
 FL_Asian_palette <- colorNumeric(c("#faff7f", "#00d600"), Orange_Asian$pct_asian)
 
@@ -226,5 +216,18 @@ orange_park3 <- income_map %>%
 
 
 orange_park3
+
+saveWidget(orange_park3, file="orange_park.html")
+```
+
+```{r}
+Yamanashi_url <- feedlist[feedlist$t == "Yamanashi GTFS",]$url_d
+
+Yamanashi <- read_gtfs(Yamanashi_url)
+
+Yamanashi_stops <- Yamanashi$stops
+
+transit_stations <- transit_stops %>%
+  filter(location_type == 1)
 ```
 
